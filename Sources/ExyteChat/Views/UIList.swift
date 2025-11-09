@@ -9,8 +9,6 @@ import SwiftUI
 
 public extension Notification.Name {
     static let onScrollToBottom = Notification.Name("onScrollToBottom")
-    static let preventAutoScroll = Notification.Name("preventAutoScroll")
-    static let allowAutoScroll = Notification.Name("allowAutoScroll")
 }
 
 struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
@@ -50,7 +48,6 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
 
     @State var isScrolledToTop = false
     @State var updateQueue = UpdateQueue()
-    @State var shouldPreventAutoScroll = false
 
     func makeUIView(context: Context) -> UITableView {
         let tableView = UITableView(frame: .zero, style: .grouped)
@@ -74,20 +71,6 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
                 if !context.coordinator.sections.isEmpty {
                     tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .bottom, animated: true)
                 }
-            }
-        }
-        
-        NotificationCenter.default.addObserver(forName: .preventAutoScroll, object: nil, queue: nil) { _ in
-            DispatchQueue.main.async {
-                shouldPreventAutoScroll = true
-                print("🚫 ExyteChat: Auto-scroll PREVENTED")
-            }
-        }
-        
-        NotificationCenter.default.addObserver(forName: .allowAutoScroll, object: nil, queue: nil) { _ in
-            DispatchQueue.main.async {
-                shouldPreventAutoScroll = false
-                print("✅ ExyteChat: Auto-scroll ALLOWED")
             }
         }
 
@@ -208,9 +191,7 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
         UIView.setAnimationsEnabled(true)
         //print("3 finished edits", runID)
 
-        // 🚀 CRITICAL: Don't apply inserts if shouldPreventAutoScroll is true
-        // This prevents UITableView from auto-scrolling during pagination
-        if (isScrolledToBottom || isScrolledToTop) && !shouldPreventAutoScroll {
+        if isScrolledToBottom || isScrolledToTop {
             // step 4: inserts
             // apply the rest of the changes to table's dataSource, i.e. inserts
             //print("4 apply inserts", runID)
@@ -226,10 +207,6 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             if !isScrollEnabled {
                 tableContentHeight = tableView.contentSize.height
             }
-        } else if shouldPreventAutoScroll {
-            // Still update the data source, but skip the table updates to prevent scroll
-            updateContextClosure(sections)
-            tableView.reloadData()
         }
     }
 
